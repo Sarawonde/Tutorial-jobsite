@@ -1,0 +1,36 @@
+.member-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.icon-action {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 7px;
+    border: 1px solid #dfe5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #176b4d;
+    cursor: pointer;
+}
+
+.icon-action:hover {
+    background: #e7f4ee;
+}
+
+.icon-action svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.icon-action.danger {
+    color: #b73b3b;
+}
+
+.icon-action.danger:hover {
+    background: #fde5e5;
+}
