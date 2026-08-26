@@ -10,7 +10,11 @@ function db(): PDO
 
     $driver = getenv('DB_DRIVER') ?: 'sqlite';
     if ($driver === 'sqlite') {
-        $pdo = new PDO('sqlite:' . __DIR__ . '/tutorlink.sqlite', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+        $dataDir = rtrim(getenv('DATA_DIR') ?: __DIR__, '/\\');
+        if (!is_dir($dataDir) && !mkdir($dataDir, 0700, true) && !is_dir($dataDir)) {
+            throw new RuntimeException("Unable to create data directory: {$dataDir}");
+        }
+        $pdo = new PDO('sqlite:' . $dataDir . '/tutorlink.sqlite', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $pdo->exec('PRAGMA foreign_keys = ON');
         initialize_sqlite($pdo);
         return $pdo;
@@ -53,7 +57,7 @@ SQL);
 }
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
-    $sessionPath = __DIR__ . '/.sessions';
+    $sessionPath = rtrim(getenv('DATA_DIR') ?: __DIR__, '/\\') . '/sessions';
     if (!is_dir($sessionPath)) mkdir($sessionPath, 0700, true);
     session_save_path($sessionPath);
     session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => isset($_SERVER['HTTPS'])]);
