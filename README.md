@@ -13,12 +13,13 @@ TutorLink is a PHP application backed by SQLite.
 The included `Dockerfile` and `railway.json` configure the web service. The app
 automatically creates and seeds its SQLite database in `/data` on first launch.
 
-## Vercel
+## Deploy to Vercel
 
-Vercel does not provide a native PHP runtime, so this monolithic PHP application
-cannot be deployed there directly. Host the application on Railway. If a Vercel
-domain is required, it can be configured as a reverse proxy to the Railway URL,
-but that adds an unnecessary second deployment and another point of failure.
+The included `vercel.json` runs the application with the community PHP runtime.
+Production requires a persistent PostgreSQL database (Neon works well): add its
+pooled connection string as the `DATABASE_URL` environment variable in Vercel.
+The application creates its tables automatically and stores sessions in Postgres.
+Local development continues to use SQLite.
 
 ## Local development
 
