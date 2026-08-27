@@ -109,11 +109,6 @@ function bootstrap_admin(PDO $pdo): void
 {
     $email = strtolower(trim(config_value('ADMIN_EMAIL')));
     if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
-    if ($email === 'admin@gmail.com') {
-        $statement = $pdo->prepare('SELECT 1 FROM app_migrations WHERE migration_key = ?');
-        $statement->execute(['2026-08-27-force-delete-admin-gmail-and-sessions']);
-        if ($statement->fetchColumn()) return;
-    }
 
     $statement = $pdo->prepare('SELECT id, password FROM users WHERE email = ?');
     $statement->execute([$email]);
