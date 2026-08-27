@@ -78,9 +78,29 @@ function initialize_postgres(PDO $pdo): void
         "CREATE TABLE IF NOT EXISTS reviews (id BIGSERIAL PRIMARY KEY,job_id BIGINT NOT NULL REFERENCES tutoring_jobs(id) ON DELETE CASCADE,reviewer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,reviewee_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,rating INTEGER NOT NULL,comment TEXT,created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,UNIQUE(job_id,reviewer_id))",
         "CREATE TABLE IF NOT EXISTS reports (id BIGSERIAL PRIMARY KEY,reporter_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,job_id BIGINT REFERENCES tutoring_jobs(id) ON DELETE SET NULL,reason TEXT NOT NULL,status VARCHAR(20) NOT NULL DEFAULT 'open',created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS web_sessions (id VARCHAR(128) PRIMARY KEY,payload TEXT NOT NULL,updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS app_migrations (migration_key VARCHAR(190) PRIMARY KEY,applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)",
     ];
     foreach ($statements as $statement) $pdo->exec($statement);
+    apply_data_migrations($pdo);
     bootstrap_admin($pdo);
+}
+
+function apply_data_migrations(PDO $pdo): void
+{
+    $migrationKey = '2026-08-27-delete-admin-gmail-parent';
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
+        $statement->execute([$migrationKey]);
+        if ($statement->rowCount() === 1) {
+            $statement = $pdo->prepare('DELETE FROM users WHERE LOWER(email) = ?');
+            $statement->execute(['admin@gmail.com']);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $exception;
+    }
 }
 
 function bootstrap_admin(PDO $pdo): void
