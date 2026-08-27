@@ -80,6 +80,30 @@ function initialize_postgres(PDO $pdo): void
         "CREATE TABLE IF NOT EXISTS web_sessions (id VARCHAR(128) PRIMARY KEY,payload TEXT NOT NULL,updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)",
     ];
     foreach ($statements as $statement) $pdo->exec($statement);
+    bootstrap_admin($pdo);
+}
+
+function bootstrap_admin(PDO $pdo): void
+{
+    $email = strtolower(trim(config_value('ADMIN_EMAIL')));
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
+
+    $statement = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $statement->execute([$email]);
+    $userId = $statement->fetchColumn();
+
+    if ($userId !== false) {
+        $statement = $pdo->prepare("UPDATE users SET role = 'admin', is_verified = 1, is_suspended = 0 WHERE id = ?");
+        $statement->execute([$userId]);
+        return;
+    }
+
+    $password = config_value('ADMIN_PASSWORD');
+    if (strlen($password) < 12) return;
+
+    $name = trim(config_value('ADMIN_NAME', 'TutorLink Admin')) ?: 'TutorLink Admin';
+    $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES(?,?,?,'admin',1,0)");
+    $statement->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
 }
 
 final class DatabaseSessionHandler implements SessionHandlerInterface

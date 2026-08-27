@@ -21,6 +21,11 @@ pooled connection string as the `DATABASE_URL` environment variable in Vercel.
 The application creates its tables automatically and stores sessions in Postgres.
 Local development continues to use SQLite.
 
+To designate the production administrator without direct database access, set
+`ADMIN_EMAIL` in Vercel to an existing registered email and redeploy. If the
+account does not exist yet, also set `ADMIN_PASSWORD` to a password of at least
+12 characters; `ADMIN_NAME` is optional.
+
 ## Local development
 
 With PHP and the PDO SQLite extension installed:
