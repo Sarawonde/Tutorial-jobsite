@@ -98,6 +98,16 @@ function apply_data_migrations(PDO $pdo): void
             $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
             $statement->execute(['%admin@gmail.com%']);
         }
+
+        $adminKey = '2026-08-28-create-sarii-admin';
+        $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
+        $statement->execute([$adminKey]);
+        if ($statement->rowCount() === 1) {
+            $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES('Sarii Admin','sarii@gmail.com',?,'admin',1,0) ON CONFLICT(email) DO UPDATE SET password=EXCLUDED.password,role='admin',is_verified=1,is_suspended=0");
+            $statement->execute(['$2y$12$x2Ec3UqiZgeBVDl0IhbU4ughjzJObKugNqckCcquIR.fLofMeE4FO']);
+            $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
+            $statement->execute(['%sarii@gmail.com%']);
+        }
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) $pdo->rollBack();
