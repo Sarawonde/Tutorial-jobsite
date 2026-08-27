@@ -87,7 +87,7 @@ function initialize_postgres(PDO $pdo): void
 
 function apply_data_migrations(PDO $pdo): void
 {
-    $migrationKey = '2026-08-27-delete-admin-gmail-parent';
+    $migrationKey = '2026-08-27-force-delete-admin-gmail-and-sessions';
     $pdo->beginTransaction();
     try {
         $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
@@ -95,6 +95,8 @@ function apply_data_migrations(PDO $pdo): void
         if ($statement->rowCount() === 1) {
             $statement = $pdo->prepare('DELETE FROM users WHERE LOWER(email) = ?');
             $statement->execute(['admin@gmail.com']);
+            $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
+            $statement->execute(['%admin@gmail.com%']);
         }
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -107,6 +109,11 @@ function bootstrap_admin(PDO $pdo): void
 {
     $email = strtolower(trim(config_value('ADMIN_EMAIL')));
     if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
+    if ($email === 'admin@gmail.com') {
+        $statement = $pdo->prepare('SELECT 1 FROM app_migrations WHERE migration_key = ?');
+        $statement->execute(['2026-08-27-force-delete-admin-gmail-and-sessions']);
+        if ($statement->fetchColumn()) return;
+    }
 
     $statement = $pdo->prepare('SELECT id FROM users WHERE email = ?');
     $statement->execute([$email]);
