@@ -37,26 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statement->execute([$submittedEmail]);
             $account = $statement->fetch();
 
-            $adminEmail = strtolower(trim(config_value('ADMIN_EMAIL')));
-            $adminPassword = config_value('ADMIN_PASSWORD');
-            $validAdminLogin = $adminEmail !== ''
-                && $submittedEmail === $adminEmail
-                && strlen($adminPassword) >= 12
-                && hash_equals($adminPassword, $submittedPassword);
-
-            if ($validAdminLogin) {
-                if ($account) {
-                    $statement = db()->prepare("UPDATE users SET password=?,role='admin',is_verified=1,is_suspended=0 WHERE id=?");
-                    $statement->execute([password_hash($adminPassword, PASSWORD_DEFAULT), $account['id']]);
-                } else {
-                    $statement = db()->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES(?,?,?,'admin',1,0)");
-                    $statement->execute([config_value('ADMIN_NAME', 'TutorLink Admin'), $adminEmail, password_hash($adminPassword, PASSWORD_DEFAULT)]);
-                }
-                $statement = db()->prepare('SELECT * FROM users WHERE email = ?');
-                $statement->execute([$submittedEmail]);
-                $account = $statement->fetch();
-            }
-
             if (!$account || !password_verify($submittedPassword, $account['password'])) {
                 throw new RuntimeException('The email or password is incorrect.');
             }

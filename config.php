@@ -82,7 +82,6 @@ function initialize_postgres(PDO $pdo): void
     ];
     foreach ($statements as $statement) $pdo->exec($statement);
     apply_data_migrations($pdo);
-    bootstrap_admin($pdo);
 }
 
 function apply_data_migrations(PDO $pdo): void
@@ -102,6 +101,16 @@ function apply_data_migrations(PDO $pdo): void
         $adminKey = '2026-08-28-create-sarii-admin';
         $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
         $statement->execute([$adminKey]);
+        if ($statement->rowCount() === 1) {
+            $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES('Sarii Admin','sarii@gmail.com',?,'admin',1,0) ON CONFLICT(email) DO UPDATE SET password=EXCLUDED.password,role='admin',is_verified=1,is_suspended=0");
+            $statement->execute(['$2y$12$x2Ec3UqiZgeBVDl0IhbU4ughjzJObKugNqckCcquIR.fLofMeE4FO']);
+            $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
+            $statement->execute(['%sarii@gmail.com%']);
+        }
+
+        $adminResetKey = '2026-08-28-reset-sarii-admin-after-env-bootstrap';
+        $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
+        $statement->execute([$adminResetKey]);
         if ($statement->rowCount() === 1) {
             $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES('Sarii Admin','sarii@gmail.com',?,'admin',1,0) ON CONFLICT(email) DO UPDATE SET password=EXCLUDED.password,role='admin',is_verified=1,is_suspended=0");
             $statement->execute(['$2y$12$x2Ec3UqiZgeBVDl0IhbU4ughjzJObKugNqckCcquIR.fLofMeE4FO']);
