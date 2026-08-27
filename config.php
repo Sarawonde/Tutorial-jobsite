@@ -85,6 +85,7 @@ function initialize_postgres(PDO $pdo): void
     ];
     foreach ($statements as $statement) $pdo->exec($statement);
     apply_data_migrations($pdo);
+    bootstrap_admin($pdo);
 }
 
 function apply_data_migrations(PDO $pdo): void
@@ -138,7 +139,7 @@ function bootstrap_admin(PDO $pdo): void
     $password = config_value('ADMIN_PASSWORD');
 
     if ($adminUser !== false) {
-        if (strlen($password) >= 12 && !password_verify($password, $adminUser['password'])) {
+        if (strlen($password) >= 8 && !password_verify($password, $adminUser['password'])) {
             $statement = $pdo->prepare("UPDATE users SET password = ?, role = 'admin', is_verified = 1, is_suspended = 0 WHERE id = ?");
             $statement->execute([password_hash($password, PASSWORD_DEFAULT), $adminUser['id']]);
         } else {
@@ -148,7 +149,7 @@ function bootstrap_admin(PDO $pdo): void
         return;
     }
 
-    if (strlen($password) < 12) return;
+    if (strlen($password) < 8) return;
 
     $name = trim(config_value('ADMIN_NAME', 'TutorLink Admin')) ?: 'TutorLink Admin';
     $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES(?,?,?,'admin',1,0)");
