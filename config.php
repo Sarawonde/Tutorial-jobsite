@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 const APP_NAME = 'TutorLink';
+const APP_VERSION = '2026.08.28.1';
+
+if (!headers_sent()) header('X-TutorLink-Version: ' . APP_VERSION);
 
 function app_config(): array
 {
