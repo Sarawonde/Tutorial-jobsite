@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 const APP_NAME = 'TutorLink';
-const APP_VERSION = '2026.08.28.1';
+const APP_VERSION = '2026.08.28.2';
 
 if (!headers_sent()) header('X-TutorLink-Version: ' . APP_VERSION);
 
@@ -84,62 +84,22 @@ function initialize_postgres(PDO $pdo): void
         "CREATE TABLE IF NOT EXISTS app_migrations (migration_key VARCHAR(190) PRIMARY KEY,applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)",
     ];
     foreach ($statements as $statement) $pdo->exec($statement);
-    apply_data_migrations($pdo);
     bootstrap_admin($pdo);
-}
-
-function apply_data_migrations(PDO $pdo): void
-{
-    $migrationKey = '2026-08-27-force-delete-admin-gmail-and-sessions';
-    $pdo->beginTransaction();
-    try {
-        $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
-        $statement->execute([$migrationKey]);
-        if ($statement->rowCount() === 1) {
-            $statement = $pdo->prepare('DELETE FROM users WHERE LOWER(email) = ?');
-            $statement->execute(['admin@gmail.com']);
-            $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
-            $statement->execute(['%admin@gmail.com%']);
-        }
-
-        $adminKey = '2026-08-28-create-sarii-admin';
-        $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
-        $statement->execute([$adminKey]);
-        if ($statement->rowCount() === 1) {
-            $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES('Sarii Admin','sarii@gmail.com',?,'admin',1,0) ON CONFLICT(email) DO UPDATE SET password=EXCLUDED.password,role='admin',is_verified=1,is_suspended=0");
-            $statement->execute(['$2y$12$x2Ec3UqiZgeBVDl0IhbU4ughjzJObKugNqckCcquIR.fLofMeE4FO']);
-            $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
-            $statement->execute(['%sarii@gmail.com%']);
-        }
-
-        $adminResetKey = '2026-08-28-reset-sarii-admin-after-env-bootstrap';
-        $statement = $pdo->prepare('INSERT INTO app_migrations(migration_key) VALUES(?) ON CONFLICT DO NOTHING');
-        $statement->execute([$adminResetKey]);
-        if ($statement->rowCount() === 1) {
-            $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES('Sarii Admin','sarii@gmail.com',?,'admin',1,0) ON CONFLICT(email) DO UPDATE SET password=EXCLUDED.password,role='admin',is_verified=1,is_suspended=0");
-            $statement->execute(['$2y$12$x2Ec3UqiZgeBVDl0IhbU4ughjzJObKugNqckCcquIR.fLofMeE4FO']);
-            $statement = $pdo->prepare('DELETE FROM web_sessions WHERE payload LIKE ?');
-            $statement->execute(['%sarii@gmail.com%']);
-        }
-        $pdo->commit();
-    } catch (Throwable $exception) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        throw $exception;
-    }
 }
 
 function bootstrap_admin(PDO $pdo): void
 {
-    $email = strtolower(trim(config_value('ADMIN_EMAIL')));
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
+    $email = strtolower(trim(config_value('ADMIN_EMAIL', 'sarii@gmail.com')));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new RuntimeException('ADMIN_EMAIL is invalid.');
 
     $statement = $pdo->prepare('SELECT id, password FROM users WHERE email = ?');
     $statement->execute([$email]);
     $adminUser = $statement->fetch();
     $password = config_value('ADMIN_PASSWORD');
+    if (strlen($password) < 8) throw new RuntimeException('ADMIN_PASSWORD must contain at least 8 characters.');
 
     if ($adminUser !== false) {
-        if (strlen($password) >= 8 && !password_verify($password, $adminUser['password'])) {
+        if (!password_verify($password, $adminUser['password'])) {
             $statement = $pdo->prepare("UPDATE users SET password = ?, role = 'admin', is_verified = 1, is_suspended = 0 WHERE id = ?");
             $statement->execute([password_hash($password, PASSWORD_DEFAULT), $adminUser['id']]);
         } else {
@@ -148,8 +108,6 @@ function bootstrap_admin(PDO $pdo): void
         }
         return;
     }
-
-    if (strlen($password) < 8) return;
 
     $name = trim(config_value('ADMIN_NAME', 'TutorLink Admin')) ?: 'TutorLink Admin';
     $statement = $pdo->prepare("INSERT INTO users(name,email,password,role,is_verified,is_suspended) VALUES(?,?,?,'admin',1,0)");
