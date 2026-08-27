@@ -115,17 +115,22 @@ function bootstrap_admin(PDO $pdo): void
         if ($statement->fetchColumn()) return;
     }
 
-    $statement = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $statement = $pdo->prepare('SELECT id, password FROM users WHERE email = ?');
     $statement->execute([$email]);
-    $userId = $statement->fetchColumn();
+    $adminUser = $statement->fetch();
+    $password = config_value('ADMIN_PASSWORD');
 
-    if ($userId !== false) {
-        $statement = $pdo->prepare("UPDATE users SET role = 'admin', is_verified = 1, is_suspended = 0 WHERE id = ?");
-        $statement->execute([$userId]);
+    if ($adminUser !== false) {
+        if (strlen($password) >= 12 && !password_verify($password, $adminUser['password'])) {
+            $statement = $pdo->prepare("UPDATE users SET password = ?, role = 'admin', is_verified = 1, is_suspended = 0 WHERE id = ?");
+            $statement->execute([password_hash($password, PASSWORD_DEFAULT), $adminUser['id']]);
+        } else {
+            $statement = $pdo->prepare("UPDATE users SET role = 'admin', is_verified = 1, is_suspended = 0 WHERE id = ?");
+            $statement->execute([$adminUser['id']]);
+        }
         return;
     }
 
-    $password = config_value('ADMIN_PASSWORD');
     if (strlen($password) < 12) return;
 
     $name = trim(config_value('ADMIN_NAME', 'TutorLink Admin')) ?: 'TutorLink Admin';
